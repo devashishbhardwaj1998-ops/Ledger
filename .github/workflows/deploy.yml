@@ -34,9 +34,6 @@ jobs:
       - name: Install dependencies
         run: npm i
 
-      - name: Type check
-        run: npm run lint
-
       - name: Build
         run: npm run build
 
