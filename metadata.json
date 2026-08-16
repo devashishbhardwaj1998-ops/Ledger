@@ -1,0 +1,6 @@
+{
+  "name": "Ledger - Timesheet Discrepancy Auditor",
+  "description": "Reconciles task-by-task timesheets between Data Pull master sheets and Daily planning sheets to audit categories and identify discrepancies.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

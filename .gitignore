@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Env files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Editor/OS cruft
+.vscode/
+.DS_Store
+*.log
+npm-debug.log*
+
+# Vite
+.vite/

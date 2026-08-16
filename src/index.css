@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --ink: #111827;
+  --paper: #f4f6f1;
+  --paper-card: #ffffff;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-subtle: #f8faf6;
+  --card-border: #111827;
+  --rule: #d5dcd2;
+  --rule-subtle: #e5eae2;
+  --brass: #8f6a27;
+  --brass-light: #fef8ee;
+  --brass-border: #d4b574;
+  --text-muted: #4b5563;
+  --text-subtle: #6b7280;
+  --text-dim: #9ca3af;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-text: #111827;
+  --btn-primary-bg: #111827;
+  --btn-primary-text: #f4f6f1;
+  --btn-primary-hover: #232f3e;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-text: #111827;
+  --btn-secondary-border: #cbd5e1;
+  --flag: #b91c1c;
+  --flag-bg: #fef2f2;
+  --flag-border: #fecaca;
+  --flag-subtle: #fff5f5;
+  --ok: #15803d;
+  --ok-bg: #f0fdf4;
+  --ok-border: #bbf7d0;
+  --warn: #b45309;
+  --warn-bg: #fffbeb;
+  --warn-border: #fde68a;
+  
+  --mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark,
+body.dark,
+.dark {
+  --ink: #f8fafc;
+  --paper: #0b0f17;
+  --paper-card: #121926;
+  --card-bg: #121926;
+  --card-subtle: #172132;
+  --card-border: #2a384e;
+  --rule: #222e40;
+  --rule-subtle: #1a2433;
+  --brass: #f59e0b;
+  --brass-light: #281c0c;
+  --brass-border: #784c12;
+  --text-muted: #cbd5e1;
+  --text-subtle: #94a3b8;
+  --text-dim: #64748b;
+  --input-bg: #0d141f;
+  --input-border: #2c3c54;
+  --input-text: #f8fafc;
+  --btn-primary-bg: #f59e0b;
+  --btn-primary-text: #090d14;
+  --btn-primary-hover: #fbbf24;
+  --btn-secondary-bg: #172132;
+  --btn-secondary-text: #f8fafc;
+  --btn-secondary-border: #2c3c54;
+  --flag: #f87171;
+  --flag-bg: #2e1215;
+  --flag-border: #7f1d1d;
+  --flag-subtle: #1f0d0f;
+  --ok: #4ade80;
+  --ok-bg: #0d2818;
+  --ok-border: #166534;
+  --warn: #fbbf24;
+  --warn-bg: #2c1d0b;
+  --warn-border: #78350f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+body {
+  background-image:
+    linear-gradient(var(--paper) 0%, var(--paper) 100%),
+    repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(18, 24, 31, 0.035) 28px);
+}
+
+html.dark body {
+  background-image:
+    linear-gradient(var(--paper) 0%, var(--paper) 100%),
+    repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(255, 255, 255, 0.02) 28px);
+}
+
+.font-mono {
+  font-family: var(--mono);
+}
+
+.font-serif {
+  font-family: var(--serif);
+}
+
+.font-sans {
+  font-family: var(--sans);
+}
+
+/* Tag pills */
+.tagpill {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  font-weight: 600;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.tagpill.mismatch {
+  color: var(--flag);
+  background: var(--flag-bg);
+  border-color: var(--flag-border);
+}
+
+.tagpill.status-not-done {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+}
+
+.tagpill.missing-employer {
+  color: var(--flag);
+  background: var(--flag-bg);
+  border-color: var(--flag-border);
+}
+
+.tagpill.missing-employee {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+}
+
+.tagpill.unmapped {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+}
+
+/* Custom Scrollbar for Ledger tables */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--rule-subtle);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
