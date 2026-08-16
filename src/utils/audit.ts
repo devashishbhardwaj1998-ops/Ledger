@@ -16,7 +16,8 @@ import {
   resolveReviewCategory,
   resolveEmployerCategory,
   normAsset,
-  formatDateDDMMYYYY
+  formatDateDDMMYYYY,
+  weekStartKey
 } from './parser';
 
 export const NOTE_TAGS: NoteTagMeta[] = [
@@ -111,12 +112,39 @@ export function runInvestigation(
     return d >= windowStart && d <= windowEnd;
   };
 
-  // In Data Pull Sheet, date matching is not required - all tracked rows for this employee are audited directly
+  // Data Pull Sheet (time sheet) rows are filtered to the selected date window first,
+  // since the user-provided filter must actually constrain what gets audited.
   const empRowsInScope = empRowsAll.filter(
     (r) =>
-      normalizeTrackedCategory(r.type) !== null ||
-      TRACKED_TYPES.has(r.type.replace(/[^a-z0-9]/gi, '').toLowerCase())
+      inWindow(r.date) &&
+      (normalizeTrackedCategory(r.type) !== null ||
+        TRACKED_TYPES.has(r.type.replace(/[^a-z0-9]/gi, '').toLowerCase()))
   );
+
+  // The time sheet is the source of truth for which weeks are in scope. Employees often
+  // log the same task on a different calendar day than the company's backend timesheet
+  // (e.g. planned on Sunday, but the backend records it Tuesday) but always within the
+  // same Sunday-Saturday payroll week. So we bucket by week, not exact day: a Daily
+  // Planning Sheet date whose week has zero timesheet activity is not considered at all,
+  // even if it happens to fall inside the selected date window.
+  const timesheetWeeks = new Set<string>();
+  empRowsInScope.forEach((r) => {
+    if (!r.date) return;
+    const week = weekStartKey(r.date);
+    if (week) timesheetWeeks.add(week);
+  });
+
+  // A Daily Planning Sheet row is in scope only if its payroll week has matching time
+  // sheet activity. We deliberately check same-week membership, not inWindow(d) exact
+  // day bounds: this audit runs on a weekly cadence, and an employee can legitimately
+  // plan a task on a different calendar day within the same week than the company's
+  // backend timesheet records it. Rows with no parsable date are kept, since there is
+  // nothing to validate them against.
+  const planRowInScope = (d: string | null) => {
+    if (!d) return true;
+    const week = weekStartKey(d);
+    return week !== null && timesheetWeeks.has(week);
+  };
 
   // Prepared Daily Planning Sheet items within the audit window with tracked category
   const planItems: PreparedPlanItem[] = [];
@@ -142,7 +170,7 @@ export function runInvestigation(
         employee: r.employee
       };
       allPlanItems.push(item);
-      if (inWindow(r.date) || !r.date) {
+      if (planRowInScope(r.date)) {
         planItems.push(item);
       }
     }
@@ -161,7 +189,7 @@ export function runInvestigation(
         employee: r.employee
       };
       allPlanItems.push(item);
-      if (inWindow(r.date) || !r.date) {
+      if (planRowInScope(r.date)) {
         planItems.push(item);
       }
     }
@@ -234,20 +262,15 @@ export function runInvestigation(
       continue;
     }
 
-    // 1. Exact Clean match (same asset + same category + same axis in Daily Planning Sheet)
-    const cleanPlanMatch =
-      planItems.find(
-        (p) =>
-          !matchedPlanItemIds.has(p.id) &&
-          p.assetKey === pull.assetKey &&
-          p.category === pull.category
-      ) ||
-      allPlanItems.find(
-        (p) =>
-          !matchedPlanItemIds.has(p.id) &&
-          p.assetKey === pull.assetKey &&
-          p.category === pull.category
-      );
+    // 1. Exact Clean match (same asset + same category + same axis in Daily Planning Sheet).
+    // Only looks within `planItems` (window + time-sheet-date scoped) so matches can only
+    // happen on dates the time sheet actually confirms are in scope.
+    const cleanPlanMatch = planItems.find(
+      (p) =>
+        !matchedPlanItemIds.has(p.id) &&
+        p.assetKey === pull.assetKey &&
+        p.category === pull.category
+    );
 
     if (cleanPlanMatch) {
       matchedPlanItemIds.add(cleanPlanMatch.id);
@@ -276,13 +299,9 @@ export function runInvestigation(
     }
 
     // 2. Category mismatch on SAME AXIS (e.g. production updatedLimited vs production Update (full))
-    const sameAxisMismatch =
-      planItems.find(
-        (p) => !matchedPlanItemIds.has(p.id) && p.assetKey === pull.assetKey && p.axis === pull.axis
-      ) ||
-      allPlanItems.find(
-        (p) => !matchedPlanItemIds.has(p.id) && p.assetKey === pull.assetKey && p.axis === pull.axis
-      );
+    const sameAxisMismatch = planItems.find(
+      (p) => !matchedPlanItemIds.has(p.id) && p.assetKey === pull.assetKey && p.axis === pull.axis
+    );
 
     if (sameAxisMismatch) {
       matchedPlanItemIds.add(sameAxisMismatch.id);
@@ -301,13 +320,9 @@ export function runInvestigation(
     }
 
     // 3. Fallback Category mismatch across any available unmatched plan item for this asset
-    const generalMismatch =
-      planItems.find(
-        (p) => !matchedPlanItemIds.has(p.id) && p.assetKey === pull.assetKey
-      ) ||
-      allPlanItems.find(
-        (p) => !matchedPlanItemIds.has(p.id) && p.assetKey === pull.assetKey
-      );
+    const generalMismatch = planItems.find(
+      (p) => !matchedPlanItemIds.has(p.id) && p.assetKey === pull.assetKey
+    );
 
     if (generalMismatch) {
       matchedPlanItemIds.add(generalMismatch.id);

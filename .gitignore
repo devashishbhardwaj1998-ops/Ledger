@@ -16,5 +16,12 @@ dist-ssr/
 *.log
 npm-debug.log*
 
+# Sample/uploaded time sheet & planning sheet data (contains real employee names/PII).
+# This app runs entirely client-side against user-supplied files - they should never
+# end up committed to the repo.
+*.csv
+*.xlsx
+*.xls
+
 # Vite
 .vite/
