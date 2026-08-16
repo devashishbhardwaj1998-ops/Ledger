@@ -29,10 +29,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - name: Update npm
-        run: npm install -g npm@10.9.7
-        
+          # Caching disabled: a cache keyed to an earlier, differently
+          # generated lockfile was implicated in npm/cli#4828 (optional
+          # native deps silently not installed). Re-enable once this has
+          # been stable across a few runs.
+
       - name: Install dependencies
         run: npm i
 
