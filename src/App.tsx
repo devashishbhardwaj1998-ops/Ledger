@@ -219,14 +219,11 @@ export default function App() {
             setEmployerRows(rows);
             setErrorNote(null);
 
-            // Auto-detect date window from planning rows if available
-            const validDates = rows.map((r) => r.date).filter(Boolean).sort() as string[];
-            if (validDates.length > 0 && (!rangeStart || rangeStart > validDates[0])) {
-              setRangeStart(validDates[0]);
-            }
-            if (validDates.length > 0 && (!rangeEnd || rangeEnd < validDates[validDates.length - 1])) {
-              setRangeEnd(validDates[validDates.length - 1]);
-            }
+            // The Data Pull Sheet (time sheet) is the source of truth for the audit
+            // window — it alone drives the default date range (see onEmployeeLoaded
+            // above). We intentionally do NOT widen the range to cover Daily Planning
+            // Sheet dates here: a date that only exists in the planning sheet is out
+            // of scope even if it's outside the timesheet's own range.
           }}
           onClearEmployee={() => {
             setEmployeeFile(null);

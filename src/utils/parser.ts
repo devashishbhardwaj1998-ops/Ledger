@@ -194,11 +194,24 @@ function normalizeYearNumber(rawYear: string | number): string {
 
 export function normDate(v: unknown): string | null {
   if (v instanceof Date && !isNaN(v.getTime())) {
-    // Handle standard XLSX cellDates (typically stored as midnight UTC) without timezone day shift
-    const isMidnightUTC = v.getUTCHours() === 0 && v.getUTCMinutes() === 0 && v.getUTCSeconds() === 0;
-    const y = isMidnightUTC ? v.getUTCFullYear() : v.getFullYear();
-    const m = String((isMidnightUTC ? v.getUTCMonth() : v.getMonth()) + 1).padStart(2, '0');
-    const d = String(isMidnightUTC ? v.getUTCDate() : v.getDate()).padStart(2, '0');
+    // XLSX/Google-Sheets exports frequently bake the sheet's local timezone into the
+    // exported date serial: "local midnight" for a given day ends up stored as some
+    // non-zero UTC time on the PREVIOUS calendar day (e.g. "2026-08-08T18:29:50.000Z"
+    // actually means Aug 9 in a UTC+5:30 sheet). Using the runtime's local timezone
+    // getters here would make parsing non-deterministic (same file, different answers
+    // depending on which timezone the code happens to run in) so we instead use a
+    // fixed UTC-hour heuristic: exact midnight UTC is trusted as-is, but any other
+    // time in the second half of the UTC day is treated as a positive-offset local
+    // midnight that spilled into the previous UTC day, and gets rolled forward.
+    const hours = v.getUTCHours();
+    const isExactMidnightUTC = hours === 0 && v.getUTCMinutes() === 0 && v.getUTCSeconds() === 0;
+    const rollsForward = !isExactMidnightUTC && hours >= 12;
+    const base = rollsForward
+      ? new Date(Date.UTC(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate() + 1))
+      : v;
+    const y = base.getUTCFullYear();
+    const m = String(base.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(base.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
   if (typeof v === 'number' && v > 1000) {
@@ -322,6 +335,22 @@ export function formatDateDDMMYYYY(dateStr: string | null | undefined): string {
   return clean;
 }
 
+// Buckets a YYYY-MM-DD date into its containing Sunday-Saturday week, returned as the
+// ISO date of that week's Sunday. Employees can legitimately log the same task on a
+// different calendar day than the company's backend timesheet, but always within the
+// same payroll week, so audits should compare weeks rather than exact days.
+export function weekStartKey(dateStr: string): string | null {
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  if (isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+  const y = d.getUTCFullYear();
+  const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const da = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${mo}-${da}`;
+}
+
 export function parseCSV(text: string): (string | number)[][] {
   const rows: (string | number)[][] = [];
   let row: string[] = [];
@@ -379,13 +408,37 @@ export function readSheet(
   file: File,
   preferredSheetNameSubstr: string | null = null
 ): Promise<SheetReadResult> {
+  const isCsv = /\.csv$/i.test(file.name);
+
+  // CSV files are read as explicit UTF-8 text and parsed with our own parseCSV().
+  // Routing CSVs through XLSX.read()'s binary parser instead is what caused accented
+  // characters (e.g. "Pêches", "Santé") to come out as mojibake ("PÃªches", "SantÃ©") -
+  // XLSX's CSV auto-detection does not reliably assume UTF-8 for raw byte input.
+  if (isCsv) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = String(e.target?.result ?? '');
+          const aoa = parseCSV(text);
+          if (!aoa.length) throw new Error('The CSV file is empty');
+          resolve({ aoa, sheetName: file.name, availableSheets: [file.name] });
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('File read failed'));
+      reader.readAsText(file, 'utf-8');
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array', cellDates: true });
-        
+
         if (!wb.SheetNames || !wb.SheetNames.length) {
           throw new Error('The workbook contains no sheets');
         }
@@ -394,7 +447,7 @@ export function readSheet(
 
         if (preferredSheetNameSubstr) {
           const pref = preferredSheetNameSubstr.trim().toLowerCase();
-          
+
           // 1. Exact match (case-insensitive, trimmed)
           const exactHit = wb.SheetNames.find(
             (n) => n.trim().toLowerCase() === pref
