@@ -31,7 +31,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Update npm
-        run: npm install -g npm@latest
+        run: npm install -g npm@10.9.7
         
       - name: Install dependencies
         run: npm i
